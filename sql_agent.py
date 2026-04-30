@@ -18,10 +18,11 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile"
 )
 
-# ---------------- CLEAN CODE ---------------- #
+# ---------------- CLEAN SQL ---------------- #
 def clean_code(code):
     code = re.sub(r"```sql", "", code)
     code = code.replace("```", "")
+    code = code.split(";")[0]   # 🔥 ensure only ONE query
     return code.strip()
 
 # ---------------- FILE UPLOAD ---------------- #
@@ -33,7 +34,7 @@ if file:
     st.subheader("📄 Data Preview")
     st.dataframe(df.head())
 
-    # 🔥 CREATE SQLITE DB
+    # ---------------- CREATE SQLITE DB ---------------- #
     conn = sqlite3.connect("temp.db")
     df.to_sql("data", conn, if_exists="replace", index=False)
 
@@ -41,17 +42,21 @@ if file:
 
     if question:
 
-        # 🔥 SINGLE PROMPT (ONLY SQL)
+        # ---------------- PROMPT ---------------- #
         prompt = f"""
 You are a senior data analyst.
 
 Table name: data
 Columns: {list(df.columns)}
 
-Write ONLY SQL query to answer the question.
+Write ONLY ONE SQL query compatible with SQLite to answer the question.
 
 Rules:
 - Use table name 'data'
+- Do not generate multiple queries
+- Avoid unsupported functions like EXTRACT
+- Use only SQLite-compatible syntax (e.g., strftime for dates)
+- Handle NULL values where needed
 - No explanation
 - No markdown
 
@@ -65,7 +70,7 @@ Question: {question}
         st.subheader("🧠 Generated SQL")
         st.code(sql_query)
 
-        # 🔥 EXECUTION
+        # ---------------- EXECUTION ---------------- #
         try:
             result = pd.read_sql_query(sql_query, conn)
 
